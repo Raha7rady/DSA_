@@ -1,176 +1,438 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 
 public class BigNumber
 {
-    private string digits;
+    private List<int> digits; 
+    private bool isNegative;   
 
-    private BigNumber(string str)
+    public BigNumber()
     {
-        digits = str.TrimStart('0');
-        if (digits == "") digits = "0";
+        digits = new List<int>();
+        isNegative = false;
     }
 
-    public BigNumber(int number = 0)
+    public BigNumber(string str)
     {
-        if (number == 0)
+        if (string.IsNullOrWhiteSpace(str))
+            throw new ArgumentException("Input cannot be null or empty.");
+
+        isNegative = str[0] == '-';
+        digits = new List<int>();
+
+        for (int i = (isNegative ? 1 : 0); i < str.Length; i++)
         {
-            digits = "0";
+            if (!char.IsDigit(str[i]))
+                throw new FormatException("Input string must contain only digits.");
+            digits.Add(int.Parse(str[i].ToString()));
+        }
+    }
+
+    public BigNumber(int number)
+    {
+        isNegative = number < 0;
+        digits = new List<int>();
+
+        number = Math.Abs(number);
+        do
+        {
+            digits.Insert(0, number % 10);
+            number /= 10;
+        } while (number > 0);
+    }
+
+    public BigNumber Add(BigNumber other)
+    {
+        int comparison = Compare(this, other);
+
+        if (isNegative == other.isNegative)
+        {
+            var resultDigits = AddDigits(digits, other.digits);
+            return new BigNumber((isNegative ? "-" : "") + string.Join("", resultDigits));
         }
         else
         {
-            digits = "";
-            while (number > 0)
+            if (comparison > 0)
             {
-                digits = (char)((number % 10) + '0') + digits;
-                number /= 10;
+                var resultDigits = SubtractDigits(digits, other.digits);
+                return new BigNumber((isNegative ? "" : "-") + string.Join("", resultDigits));
+            }
+            else if (comparison < 0)
+            {
+                var resultDigits = SubtractDigits(other.digits, digits);
+                return new BigNumber((other.isNegative ? "" : "-") + string.Join("", resultDigits));
+            }
+            else
+            {
+                return new BigNumber("0");
             }
         }
     }
 
-    public static BigNumber operator +(BigNumber a, BigNumber b)
+    public BigNumber Subtract(BigNumber other)
     {
-        string result = "";
-        int carry = 0;
-        int len1 = a.digits.Length;
-        int len2 = b.digits.Length;
-        int maxLen = Math.Max(len1, len2);
-        for (int i = 0; i < maxLen || carry != 0; i++)
+        if (isNegative != other.isNegative)
         {
-            int digit1 = (i < len1) ? a.digits[len1 - 1 - i] - '0' : 0;
-            int digit2 = (i < len2) ? b.digits[len2 - 1 - i] - '0' : 0;
-            int sum = digit1 + digit2 + carry;
-            carry = sum / 10;
-            result = (char)((sum % 10) + '0') + result;
+            return Add(other.Negate());
         }
-        return new BigNumber(result);
+        else
+        {
+            bool resultNegative = Compare(this, other) < 0;
+            var resultDigits = SubtractDigits(resultNegative ? other.digits : digits, resultNegative ? digits : other.digits);
+            return new BigNumber((resultNegative ? "-" : "") + string.Join("", resultDigits));
+        }
     }
 
-    public static BigNumber operator -(BigNumber a, BigNumber b)
+    public BigNumber Negate()
     {
-        string result = "";
-        int borrow = 0;
-        int len1 = a.digits.Length;
-        int len2 = b.digits.Length;
+        return new BigNumber(string.Join("", digits)) { isNegative = !isNegative };
+    }
 
-        bool isNegative = a.CompareTo(b) < 0;
+    private List<int> AddDigits(List<int> num1, List<int> num2)
+    {
+        var result = new List<int>();
+        int carry = 0;
+        int maxLength = Math.Max(num1.Count, num2.Count);
 
-        if (isNegative)
+        for (int i = 0; i < maxLength; i++)
         {
-            var temp = a;
-            a = b;
-            b = temp;
+            int digit1 = i < num1.Count ? num1[num1.Count - 1 - i] : 0;
+            int digit2 = i < num2.Count ? num2[num2.Count - 1 - i] : 0;
+            int sum = digit1 + digit2 + carry;
+            result.Add(sum % 10);
+            carry = sum / 10;
         }
 
-        for (int i = 0; i < len1; i++)
+        if (carry > 0)
+            result.Add(carry);
+
+        result.Reverse();
+        return result;
+    }
+
+    private List<int> SubtractDigits(List<int> minuend, List<int> subtrahend)
+    {
+        var result = new List<int>();
+        int borrow = 0;
+
+        for (int i = 0; i < minuend.Count; i++)
         {
-            int digit1 = a.digits[len1 - 1 - i] - '0';
-            int digit2 = (i < len2) ? b.digits[len2 - 1 - i] - '0' : 0;
-            int diff = digit1 - digit2 - borrow;
-            if (diff < 0)
+            int digit1 = minuend[minuend.Count - 1 - i];
+            int digit2 = (i < subtrahend.Count ? subtrahend[subtrahend.Count - 1 - i] : 0) + borrow;
+
+            if (digit1 < digit2)
             {
-                diff += 10;
+                digit1 += 10;
                 borrow = 1;
             }
             else
             {
                 borrow = 0;
             }
-            result = (char)(diff + '0') + result;
+
+            result.Add(digit1 - digit2);
         }
 
-        int pos = 0;
-        while (pos < result.Length && result[pos] == '0') pos++;
-        if (pos == result.Length) return new BigNumber("0");
-        return new BigNumber((isNegative ? "-" : "") + result.Substring(pos));
+        result.Reverse();
+
+        while (result.Count > 1 && result[0] == 0)
+            result.RemoveAt(0);
+
+        return result;
     }
 
-    public int CompareTo(BigNumber other)
+    private int Compare(BigNumber a, BigNumber b)
     {
-        if (this.digits.Length != other.digits.Length)
+        if (a.isNegative && !b.isNegative) return -1;
+        if (!a.isNegative && b.isNegative) return 1;
+
+        if (a.digits.Count != b.digits.Count)
+            return a.digits.Count > b.digits.Count ? 1 : -1;
+
+        for (int i = 0; i < a.digits.Count; i++)
         {
-            return this.digits.Length.CompareTo(other.digits.Length);
+            if (a.digits[i] != b.digits[i])
+                return a.digits[i] > b.digits[i] ? 1 : -1;
         }
-        for (int i = 0; i < this.digits.Length; i++)
+
+        return 0; 
+    }
+
+    public override string ToString()
+    {
+        return (isNegative ? "-" : "") + string.Join("", digits);
+    }
+
+    public BigNumber ShiftLeft(int positions)
+    {
+        if (positions < 0)
+            throw new ArgumentException("Positions must be non-negative.");
+
+        var shiftedDigits = new List<int>(digits);
+        for (int i = 0; i < positions; i++)
         {
-            if (this.digits[i] != other.digits[i])
+            shiftedDigits.Add(0);
+        }
+
+        return new BigNumber((isNegative ? "-" : "") + string.Join("", shiftedDigits));
+    }
+
+    public BigNumber ShiftRight(int positions)
+    {
+        if (positions < 0)
+            throw new ArgumentException("Positions must be non-negative.");
+
+        if (positions >= digits.Count)
+        {
+            return new BigNumber("0");
+        }
+
+        var shiftedDigits = digits.GetRange(0, digits.Count - positions);
+        return new BigNumber((isNegative ? "-" : "") + string.Join("", shiftedDigits));
+    }
+
+
+
+    public BigNumber Divide(BigNumber divisor)
+    {
+        if (divisor.IsZero())
+            throw new DivideByZeroException("Cannot divide by zero.");
+
+        bool resultIsNegative = this.isNegative != divisor.isNegative;
+
+        BigNumber dividend = this.NegateIfNegative();
+        divisor = divisor.NegateIfNegative();
+
+        int diffSize = dividend.digits.Count - divisor.digits.Count;
+        int counter = 0;
+
+        BigNumber adjustedDivisor = new BigNumber(string.Join("", divisor.digits));
+        while (diffSize >= 0)
+        {
+            for (int i = 0; i < diffSize; i++)
+                adjustedDivisor.digits.Insert(0, 0);
+
+            if (Compare(dividend, adjustedDivisor) >= 0)
             {
-                return this.digits[i].CompareTo(other.digits[i]);
+                dividend = dividend.Subtract(adjustedDivisor);
+                counter++;
+            }
+
+            adjustedDivisor.digits.RemoveAt(0);
+            diffSize--;
+        }
+
+        return new BigNumber(counter.ToString()) { isNegative = resultIsNegative };
+    }
+
+    private BigNumber NegateIfNegative()
+    {
+        return isNegative ? this.Negate() : this;
+    }
+
+    private bool IsZero()
+    {
+        return digits.Count == 1 && digits[0] == 0;
+    }
+
+
+
+    public BigNumber Multiply(BigNumber other)
+    {
+        bool resultNegative = isNegative != other.isNegative;
+
+        var resultDigits = Karatsuba(this, other).digits;
+
+        if (resultDigits == null || resultDigits.Count == 0)
+        {
+            throw new InvalidOperationException("Result digits cannot be empty.");
+        }
+
+        var result = new BigNumber(string.Join("", resultDigits));
+        result.isNegative = resultNegative;
+
+        return result;
+    }
+
+    private BigNumber Karatsuba(BigNumber x, BigNumber y)
+    {
+        if (x.ToString() == "0" || y.ToString() == "0")
+            return new BigNumber("0");
+
+        int maxLength = Math.Max(x.digits.Count, y.digits.Count);
+
+        if (maxLength < 2)
+            return new BigNumber((x.ToString().TrimStart('-') + y.ToString().TrimStart('-')));
+
+        int halfLength = (maxLength + 1) / 2;
+
+        var xHigh = new BigNumber(string.Join("", x.digits.Take(x.digits.Count - halfLength)));
+        var xLow = new BigNumber(string.Join("", x.digits.Skip(x.digits.Count - halfLength)));
+        var yHigh = new BigNumber(string.Join("", y.digits.Take(y.digits.Count - halfLength)));
+        var yLow = new BigNumber(string.Join("", y.digits.Skip(y.digits.Count - halfLength)));
+
+        var z0 = Karatsuba(xLow, yLow);
+        var z1 = Karatsuba(xLow.Add( xHigh), yLow.Add(yHigh));
+        var z2 = Karatsuba(xHigh, yHigh);
+
+        var result = z2.Shift(2 * halfLength).Add(z1.Subtract(z2).Subtract(z0).Shift(halfLength)).Add(z0);
+
+        return result;
+    }
+
+    private BigNumber Shift(int count)
+    {
+        var shiftedDigits = new List<int>(digits);
+        for (int i = 0; i < count; i++)
+            shiftedDigits.Add(0);
+
+        return new BigNumber(string.Join("", shiftedDigits));
+    }
+
+
+    public BigNumber Power(int exponent)
+    {
+        if (exponent == 0)
+            return new BigNumber(1);
+        if (exponent < 0)
+            return new BigNumber(1).Divide(this.Power(-exponent));
+
+        BigNumber result = new BigNumber(1);
+        for (int i = 0; i < exponent; i++)
+        {
+            result = result.Multiply1(this);
+        }
+        return result;
+    }
+
+
+    public BigNumber Multiply1(BigNumber other)
+    {
+        if (this.digits.Count == 0 || other.digits.Count == 0)
+            return new BigNumber("0");
+
+        bool resultIsNegative = this.isNegative != other.isNegative;
+
+        int[] resultDigits = new int[this.digits.Count + other.digits.Count];
+
+        for (int i = this.digits.Count - 1; i >= 0; i--)
+        {
+            for (int j = other.digits.Count - 1; j >= 0; j--)
+            {
+                int product = this.digits[i] * other.digits[j];
+                int tempSum = product + resultDigits[i + j + 1]; 
+
+                resultDigits[i + j + 1] = tempSum % 10;
+                resultDigits[i + j] += tempSum / 10;
             }
         }
-        return 0;
+
+        var finalResult = new List<int>();
+        foreach (var digit in resultDigits)
+        {
+            if (!(finalResult.Count == 0 && digit == 0)) 
+                finalResult.Add(digit);
+        }
+
+        if (finalResult.Count == 0)
+            finalResult.Add(0);
+
+        BigNumber result = new BigNumber(string.Join("", finalResult));
+        result.isNegative = resultIsNegative;
+
+        return result;
     }
 
-    public static BigNumber operator <<(BigNumber a, int shift)
+
+
+    public BigNumber Factorial()
     {
-        return new BigNumber(a.digits + new string('0', shift));
-    }
+        if (isNegative)
+        {
+            throw new ArgumentException("Factorial is not defined for negative numbers.");
+        }
 
-    public static BigNumber operator >>(BigNumber a, int shift)
-    {
-        if (shift >= a.digits.Length) return new BigNumber(0);
-        return new BigNumber(a.digits.Substring(0, a.digits.Length - shift));
-    }
+        if (digits.Count == 1 && digits[0] == 0)
+        {
+            return new BigNumber(1);
+        }
 
-    public void Print()
-    {
-        Console.Write(digits);
-    }
+        BigNumber result = new BigNumber(1);
+        BigNumber current = new BigNumber(1);
 
-    public static void Main()
-    {
-        Console.Write("Enter the first number: ");
-        int input1 = int.Parse(Console.ReadLine());
-        Console.Write("Enter the second number: ");
-        int input2 = int.Parse(Console.ReadLine());
+        while (Compare(current, this) <= 0)
+        {
+            result = result.Multiply1(current);
+            current = current.Add(new BigNumber(1));
+        }
 
-        BigNumber num1 = new BigNumber(input1);
-        BigNumber num2 = new BigNumber(input2);
-
-        Console.Write("Enter number of positions to shift the first number to the left: ");
-        int shiftLeftNum1 = int.Parse(Console.ReadLine());
-
-        Console.Write("Enter number of positions to shift the first number to the right: ");
-        int shiftRightNum1 = int.Parse(Console.ReadLine());
-
-        Console.Write("Enter number of positions to shift the second number to the left: ");
-        int shiftLeftNum2 = int.Parse(Console.ReadLine());
-
-        Console.Write("Enter number of positions to shift the second number to the right: ");
-        int shiftRightNum2 = int.Parse(Console.ReadLine());
-
-        BigNumber shiftedNum1Left = num1 << shiftLeftNum1;
-        BigNumber shiftedNum1Right = num1 >> shiftRightNum1;
-
-        BigNumber shiftedNum2Left = num2 << shiftLeftNum2;
-        BigNumber shiftedNum2Right = num2 >> shiftRightNum2;
-
-        BigNumber sum = num1 + num2;
-        BigNumber diff = num1 - num2;
-
-        Console.Write("Sum: ");
-        sum.Print();
-        Console.WriteLine();
-
-        Console.Write("Difference: ");
-        diff.Print();
-        Console.WriteLine();
-
-        Console.Write("First Number Shifted Left: ");
-        shiftedNum1Left.Print();
-        Console.WriteLine();
-
-        Console.Write("First Number Shifted Right: ");
-        shiftedNum1Right.Print();
-        Console.WriteLine();
-
-        Console.Write("Second Number Shifted Left: ");
-        shiftedNum2Left.Print();
-        Console.WriteLine();
-
-        Console.Write("Second Number Shifted Right: ");
-        shiftedNum2Right.Print();
-        Console.WriteLine();
-
-
+        return result;
     }
 }
+
+class Program
+{
+    static void Main(string[] args)
+    {
+            try
+            {
+                Console.WriteLine("Enter the first number:");
+                string input1 = Console.ReadLine();
+                BigNumber num1 = new BigNumber(input1);
+
+                Console.WriteLine("Enter the second number:");
+                string input2 = Console.ReadLine();
+                BigNumber num2 = new BigNumber(input2);
+
+
+
+                Console.WriteLine($"Multiplication: {num1.Multiply(num2)}");
+
+
+
+                Console.WriteLine($"Sum: {num1.Add(num2)}");
+
+                Console.WriteLine($"Difference: {num1.Subtract(num2)}");
+
+                Console.WriteLine($"Multiplication: {num1.Multiply1(num2)}");
+
+                try
+                {
+                    Console.WriteLine($"Division: {num1.Divide(num2)}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error during division: {ex.Message}");
+                }
+
+                Console.WriteLine("Enter another number for shift, power and factorial operations:");
+                string input3 = Console.ReadLine();
+                BigNumber num3 = new BigNumber(input3);
+
+                Console.Write("Enter the number of bits to shift left: ");
+                int leftShift = int.Parse(Console.ReadLine());
+                Console.WriteLine($"Shift Left by {leftShift}: {num3.ShiftLeft(leftShift)}");
+
+                Console.Write("Enter the number of bits to shift right: ");
+                int rightShift = int.Parse(Console.ReadLine());
+                Console.WriteLine($"Shift Right by {rightShift}: {num3.ShiftRight(rightShift)}");
+
+                Console.Write("Enter an exponent for power operation: ");
+                int exponent = int.Parse(Console.ReadLine());
+                Console.WriteLine($"{num3} ^ {exponent} = {num3.Power(exponent)}");
+
+                try
+                {
+                    Console.WriteLine($"Factorial of {num3} is {num3.Factorial()}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error calculating factorial: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+        }
+    }
