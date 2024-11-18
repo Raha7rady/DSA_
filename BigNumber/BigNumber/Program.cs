@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 
 public class BigNumber
 {
@@ -191,7 +192,7 @@ public class BigNumber
         return new BigNumber((isNegative ? "-" : "") + string.Join("", shiftedDigits));
     }
 
-
+    
 
     public BigNumber Divide(BigNumber divisor)
     {
@@ -200,30 +201,41 @@ public class BigNumber
 
         bool resultIsNegative = this.isNegative != divisor.isNegative;
 
-        BigNumber dividend = this.NegateIfNegative();
-        divisor = divisor.NegateIfNegative();
+        BigNumber absDividend = this.isNegative ? this.Negate() : this;
+        BigNumber absDivisor = divisor.isNegative ? divisor.Negate() : divisor;
 
-        int diffSize = dividend.digits.Count - divisor.digits.Count;
-        int counter = 0;
+        int diffSize = absDividend.digits.Count - absDivisor.digits.Count;
+        BigNumber scaledDivisor = new BigNumber(absDivisor.ToString() + new string('0', diffSize));
+        BigNumber currentDividend = new BigNumber(string.Join("", absDividend.digits));
+        BigNumber quotient = new BigNumber();
 
-        BigNumber adjustedDivisor = new BigNumber(string.Join("", divisor.digits));
         while (diffSize >= 0)
         {
-            for (int i = 0; i < diffSize; i++)
-                adjustedDivisor.digits.Insert(0, 0);
+            int counter = 0;
 
-            if (Compare(dividend, adjustedDivisor) >= 0)
+            while (Compare(currentDividend, scaledDivisor) >= 0)
             {
-                dividend = dividend.Subtract(adjustedDivisor);
+                currentDividend = currentDividend.Subtract(scaledDivisor);
                 counter++;
             }
 
-            adjustedDivisor.digits.RemoveAt(0);
+            if (counter > 0)
+                quotient = quotient.Add(new BigNumber(counter * (int)Math.Pow(10, diffSize)));
+
             diffSize--;
+            if (diffSize >= 0)
+                scaledDivisor = new BigNumber(absDivisor.ToString() + new string('0', diffSize));
         }
 
-        return new BigNumber(counter.ToString()) { isNegative = resultIsNegative };
+        if (quotient.IsZero())
+            quotient.isNegative = false; 
+        else
+            quotient.isNegative = resultIsNegative;
+
+        return quotient;
     }
+
+
 
     private BigNumber NegateIfNegative()
     {
@@ -237,7 +249,7 @@ public class BigNumber
 
 
 
-    public BigNumber Multiply(BigNumber other)
+    public BigNumber MultiplyKaratsuba(BigNumber other)
     {
         bool resultNegative = isNegative != other.isNegative;
 
@@ -254,6 +266,7 @@ public class BigNumber
         return result;
     }
 
+
     private BigNumber Karatsuba(BigNumber x, BigNumber y)
     {
         if (x.ToString() == "0" || y.ToString() == "0")
@@ -262,22 +275,27 @@ public class BigNumber
         int maxLength = Math.Max(x.digits.Count, y.digits.Count);
 
         if (maxLength < 2)
-            return new BigNumber((x.ToString().TrimStart('-') + y.ToString().TrimStart('-')));
+        {
+            return new BigNumber((x.Multiply(y)).ToString());
+        }
 
         int halfLength = (maxLength + 1) / 2;
+        var a = x.digits.Take(x.digits.Count - halfLength);
+        var b = y.digits.Take(y.digits.Count - halfLength);
+        var c = new BigNumber("0");
 
-        var xHigh = new BigNumber(string.Join("", x.digits.Take(x.digits.Count - halfLength)));
+        var xHigh = new BigNumber(string.Join("", a.Count() > 0 ? a : c.digits.Take(1)));
         var xLow = new BigNumber(string.Join("", x.digits.Skip(x.digits.Count - halfLength)));
-        var yHigh = new BigNumber(string.Join("", y.digits.Take(y.digits.Count - halfLength)));
+        var yHigh = new BigNumber(string.Join("", b.Count() > 0 ? b : c.digits.Take(1)));
         var yLow = new BigNumber(string.Join("", y.digits.Skip(y.digits.Count - halfLength)));
 
         var z0 = Karatsuba(xLow, yLow);
-        var z1 = Karatsuba(xLow.Add( xHigh), yLow.Add(yHigh));
+        var z1 = Karatsuba(xLow.Add(xHigh), yLow.Add(yHigh));
         var z2 = Karatsuba(xHigh, yHigh);
 
         var result = z2.Shift(2 * halfLength).Add(z1.Subtract(z2).Subtract(z0).Shift(halfLength)).Add(z0);
 
-        return result;
+        return RemoveLeadingZeros(result);
     }
 
     private BigNumber Shift(int count)
@@ -290,23 +308,44 @@ public class BigNumber
     }
 
 
-    public BigNumber Power(int exponent)
+    private BigNumber RemoveLeadingZeros(BigNumber number)
     {
-        if (exponent == 0)
-            return new BigNumber(1);
-        if (exponent < 0)
-            return new BigNumber(1).Divide(this.Power(-exponent));
-
-        BigNumber result = new BigNumber(1);
-        for (int i = 0; i < exponent; i++)
+        while (number.digits.Count > 1 && number.digits[0] == 0)
         {
-            result = result.Multiply1(this);
+            number.digits.RemoveAt(0);
         }
-        return result;
+
+        return number;
     }
 
 
-    public BigNumber Multiply1(BigNumber other)
+    public BigNumber Power(int exponent)
+    {
+        if (exponent < 0)
+            throw new ArgumentException("Exponent must be non-negative.");
+
+        if (exponent == 0)
+            return new BigNumber(1); 
+
+        if (exponent == 1)
+            return this; 
+
+        int halfExponent = exponent / 2;
+        BigNumber halfPower = this.Power(halfExponent);
+
+        if (exponent % 2 == 0)
+        {
+            // Even exponent: (a^b)^2
+            return halfPower.Multiply(halfPower);
+        }
+        else
+        {
+            // Odd exponent: a^b * a^(b-1)
+            return halfPower.Multiply(halfPower).Multiply(this);
+        }
+    }
+
+    public BigNumber Multiply(BigNumber other)
     {
         if (this.digits.Count == 0 || other.digits.Count == 0)
             return new BigNumber("0");
@@ -343,8 +382,6 @@ public class BigNumber
         return result;
     }
 
-
-
     public BigNumber Factorial()
     {
         if (isNegative)
@@ -362,7 +399,7 @@ public class BigNumber
 
         while (Compare(current, this) <= 0)
         {
-            result = result.Multiply1(current);
+            result = result.Multiply(current);
             current = current.Add(new BigNumber(1));
         }
 
@@ -385,19 +422,16 @@ class Program
                 BigNumber num2 = new BigNumber(input2);
 
 
-
-                Console.WriteLine($"Multiplication: {num1.Multiply(num2)}");
-
-
-
                 Console.WriteLine($"Sum: {num1.Add(num2)}");
 
                 Console.WriteLine($"Difference: {num1.Subtract(num2)}");
 
-                Console.WriteLine($"Multiplication: {num1.Multiply1(num2)}");
+                Console.WriteLine($"Multiplication: {num1.Multiply(num2)}");
 
                 try
-                {
+                {         
+                    Console.WriteLine($"Multiplication(karatsuba): {num1.MultiplyKaratsuba(num2)}");
+
                     Console.WriteLine($"Division: {num1.Divide(num2)}");
                 }
                 catch (Exception ex)
@@ -409,19 +443,20 @@ class Program
                 string input3 = Console.ReadLine();
                 BigNumber num3 = new BigNumber(input3);
 
-                Console.Write("Enter the number of bits to shift left: ");
-                int leftShift = int.Parse(Console.ReadLine());
-                Console.WriteLine($"Shift Left by {leftShift}: {num3.ShiftLeft(leftShift)}");
+            Console.Write("Enter the number of bits to shift left: ");
+            int leftShift = int.Parse(Console.ReadLine());
+            Console.WriteLine($"Shift Left by {leftShift}: {num3.ShiftLeft(leftShift)}");
 
-                Console.Write("Enter the number of bits to shift right: ");
-                int rightShift = int.Parse(Console.ReadLine());
-                Console.WriteLine($"Shift Right by {rightShift}: {num3.ShiftRight(rightShift)}");
+            Console.Write("Enter the number of bits to shift right: ");
+            int rightShift = int.Parse(Console.ReadLine());
+            Console.WriteLine($"Shift Right by {rightShift}: {num3.ShiftRight(rightShift)}");
 
-                Console.Write("Enter an exponent for power operation: ");
+            Console.Write("Enter an exponent for power operation: ");
                 int exponent = int.Parse(Console.ReadLine());
                 Console.WriteLine($"{num3} ^ {exponent} = {num3.Power(exponent)}");
 
-                try
+
+            try
                 {
                     Console.WriteLine($"Factorial of {num3} is {num3.Factorial()}");
                 }
