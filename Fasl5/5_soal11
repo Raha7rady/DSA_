@@ -1,0 +1,61 @@
+using System;
+using System.Collections.Generic;
+
+class QueueUsingStacks<T>
+{
+    private Stack<T> s1 = new Stack<T>();
+    private Stack<T> s2 = new Stack<T>();
+
+    public void Enqueue(T item)
+    {
+        s1.Push(item);
+    }
+
+    public T Dequeue()
+    {
+        if (s2.Count == 0)
+        {
+            if (s1.Count == 0)
+            {
+                throw new InvalidOperationException("The queue is empty.");
+            }
+
+            while (s1.Count > 0)
+            {
+                s2.Push(s1.Pop());
+            }
+        }
+
+        return s2.Pop();
+    }
+
+    public bool IsEmpty()
+    {
+        return s1.Count == 0 && s2.Count == 0;
+    }
+}
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        QueueUsingStacks<int> queue = new QueueUsingStacks<int>();
+
+        Console.WriteLine("Please enter the number of items you want to add to the queue:");
+        int n = int.Parse(Console.ReadLine());
+
+        for (int i = 0; i < n; i++)
+        {
+            Console.WriteLine($"Enter item {i + 1}:");
+            int item = int.Parse(Console.ReadLine());
+            queue.Enqueue(item);
+        }
+
+        Console.WriteLine("Items in the queue in order:");
+
+        while (!queue.IsEmpty())
+        {
+            Console.WriteLine(queue.Dequeue());
+        }
+    }
+}
