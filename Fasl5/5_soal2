@@ -1,0 +1,46 @@
+using System;
+using System.Collections.Generic;
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        Stack<int> stack = new Stack<int>();
+        Queue<int> queue = new Queue<int>();
+
+        stack.Push(1);
+        stack.Push(2);
+        stack.Push(3);
+        stack.Push(4);
+
+        queue.Enqueue(3);
+        queue.Enqueue(4);
+        queue.Enqueue(5);
+        queue.Enqueue(6);
+
+        HashSet<int> intersection = GetIntersection(stack, queue);
+
+        Console.WriteLine("Intersection of elements:");
+        foreach (var item in intersection)
+        {
+            Console.WriteLine(item);
+        }
+    }
+
+    static HashSet<int> GetIntersection(Stack<int> stack, Queue<int> queue)
+    {
+        HashSet<int> stackSet = new HashSet<int>(stack);
+
+        HashSet<int> intersection = new HashSet<int>();
+
+        foreach (var item in queue)
+        {
+            if (stackSet.Contains(item))
+            {
+                intersection.Add(item);
+            }
+        }
+
+        return intersection;
+    }
+}
