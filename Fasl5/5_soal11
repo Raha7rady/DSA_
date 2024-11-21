@@ -1,0 +1,87 @@
+using System;
+using System.Collections.Generic;
+
+class StackUsingQueues<T>
+{
+    private Queue<T> q1 = new Queue<T>();
+    private Queue<T> q2 = new Queue<T>();
+
+    public void Push(T item)
+    {
+        q1.Enqueue(item);
+    }
+
+    public T Pop()
+    {
+        if (q1.Count == 0)
+        {
+            throw new InvalidOperationException("The stack is empty.");
+        }
+
+        while (q1.Count > 1)
+        {
+            q2.Enqueue(q1.Dequeue());
+        }
+
+        T item = q1.Dequeue();
+
+        Queue<T> temp = q1;
+        q1 = q2;
+        q2 = temp;
+
+        return item;
+    }
+
+    public T Peek()
+    {
+        if (q1.Count == 0)
+        {
+            throw new InvalidOperationException("The stack is empty.");
+        }
+
+        while (q1.Count > 1)
+        {
+            q2.Enqueue(q1.Dequeue());
+        }
+
+        T item = q1.Peek();
+
+        q2.Enqueue(q1.Dequeue());
+
+        Queue<T> temp = q1;
+        q1 = q2;
+        q2 = temp;
+
+        return item;
+    }
+
+    public bool IsEmpty()
+    {
+        return q1.Count == 0;
+    }
+}
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        StackUsingQueues<int> stack = new StackUsingQueues<int>();
+
+        Console.WriteLine("Please enter the number of items you want to add to the stack:");
+        int n = int.Parse(Console.ReadLine());
+
+        for (int i = 0; i < n; i++)
+        {
+            Console.WriteLine($"Enter item {i + 1}:");
+            int item = int.Parse(Console.ReadLine());
+            stack.Push(item);
+        }
+
+        Console.WriteLine("Items in the stack in reverse order:");
+
+        while (!stack.IsEmpty())
+        {
+            Console.WriteLine(stack.Pop());
+        }
+    }
+}
