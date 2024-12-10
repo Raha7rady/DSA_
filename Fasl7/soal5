@@ -1,0 +1,87 @@
+using System;
+
+class Node
+{
+    public int data;
+    public Node next;
+
+    public Node(int value)
+    {
+        data = value;
+        next = null;
+    }
+}
+
+class Stack
+{
+    private Node top;
+
+    public Stack()
+    {
+        top = null;
+    }
+
+    public void Push(int value)
+    {
+        Node newNode = new Node(value);
+        newNode.next = top;
+        top = newNode;
+    }
+
+    public int Pop()
+    {
+        if (IsEmpty())
+        {
+            throw new InvalidOperationException("Stack is empty.");
+        }
+        int value = top.data;
+        top = top.next;
+        return value;
+    }
+
+    public int Peek()
+    {
+        if (IsEmpty())
+        {
+            throw new InvalidOperationException("Stack is empty.");
+        }
+        return top.data;
+    }
+
+    public bool IsEmpty()
+    {
+        return top == null;
+    }
+}
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        Stack stack = new Stack();
+        Console.WriteLine("Enter numbers to push onto the stack (type 'exit' to stop):");
+
+        while (true)
+        {
+            string input = Console.ReadLine();
+            if (input.ToLower() == "exit")
+            {
+                break;
+            }
+            if (int.TryParse(input, out int number))
+            {
+                stack.Push(number);
+            }
+            else
+            {
+                Console.WriteLine("Invalid input. Please enter a number or 'exit' to stop.");
+            }
+        }
+
+        Console.WriteLine("\nPopping elements from the stack:");
+        while (!stack.IsEmpty())
+        {
+            Console.WriteLine($"{stack.Pop()}");
+        }
+    }
+}
