@@ -1,0 +1,106 @@
+using System;
+
+public class Node
+{
+    public int Data;
+    public Node Next;
+    public Node Prev;
+
+    public Node(int data)
+    {
+        Data = data;
+        Next = null;
+        Prev = null;
+    }
+}
+
+public class PriorityQueue
+{
+    private Node head;
+
+    public PriorityQueue()
+    {
+        head = null;
+    }
+
+    public void Enqueue(int data)
+    {
+        Node newNode = new Node(data);
+        if (head == null)
+        {
+            head = newNode;
+        }
+        else
+        {
+            Node current = head;
+            while (current.Next != null && current.Next.Data < data)
+            {
+                current = current.Next;
+            }
+
+            if (current == head && current.Data >= data) 
+            {
+                newNode.Next = head;
+                head.Prev = newNode;
+                head = newNode;
+            }
+            else 
+            {
+                newNode.Next = current.Next;
+                if (current.Next != null)
+                {
+                    current.Next.Prev = newNode;
+                }
+                current.Next = newNode;
+                newNode.Prev = current;
+            }
+        }
+    }
+
+    public int Dequeue()
+    {
+        if (head == null)
+        {
+            throw new InvalidOperationException("Queue is empty.");
+        }
+
+        int minValue = head.Data;
+        head = head.Next;
+
+        if (head != null)
+        {
+            head.Prev = null;
+        }
+
+        return minValue;
+    }
+
+    public bool IsEmpty()
+    {
+        return head == null;
+    }
+}
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        Console.WriteLine("Enter the number of integers:");
+        int n = int.Parse(Console.ReadLine());
+
+        PriorityQueue priorityQueue = new PriorityQueue();
+
+        Console.WriteLine($"Please enter {n} integers:");
+        for (int i = 0; i < n; i++)
+        {
+            int number = int.Parse(Console.ReadLine());
+            priorityQueue.Enqueue(number);
+        }
+
+        Console.WriteLine("Sorted numbers:");
+        while (!priorityQueue.IsEmpty())
+        {
+            Console.WriteLine(priorityQueue.Dequeue());
+        }
+    }
+}
