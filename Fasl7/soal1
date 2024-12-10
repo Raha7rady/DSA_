@@ -1,0 +1,103 @@
+using System;
+
+public class Node
+{
+    public int Data;
+    public Node Next;
+
+    public Node(int data)
+    {
+        Data = data;
+        Next = null;
+    }
+}
+
+public class LinkedList
+{
+    public Node Head;
+
+    public LinkedList()
+    {
+        Head = null;
+    }
+
+    public void Add(int data)
+    {
+        Node newNode = new Node(data);
+        if (Head == null)
+        {
+            Head = newNode;
+            return;
+        }
+
+        Node current = Head;
+        while (current.Next != null)
+        {
+            current = current.Next;
+        }
+        current.Next = newNode;
+    }
+
+    public void RemoveMax()
+    {
+        if (Head == null) return; 
+
+        Node maxNode = Head;
+        Node current = Head;
+        Node previous = null;
+        Node previousToMax = null;
+
+        while (current != null)
+        {
+            if (current.Data > maxNode.Data)
+            {
+                maxNode = current;
+                previousToMax = previous;
+            }
+            previous = current;
+            current = current.Next;
+        }
+
+        if (maxNode == Head)
+        {
+            Head = Head.Next;
+        }
+        else if (previousToMax != null)
+        {
+            previousToMax.Next = maxNode.Next; 
+        }
+    }
+
+    public void PrintList()
+    {
+        Node current = Head;
+        while (current != null)
+        {
+            Console.Write(current.Data + " -> ");
+            current = current.Next;
+        }
+        Console.WriteLine("null");
+    }
+}
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        LinkedList list = new LinkedList();
+
+        list.Add(10);
+        list.Add(20);
+        list.Add(5);
+        list.Add(30);
+        list.Add(15);
+
+        Console.WriteLine("List before removing maximum:");
+        list.PrintList();
+
+        list.RemoveMax();
+
+        Console.WriteLine("List after removing maximum:");
+        list.PrintList();
+    }
+}
