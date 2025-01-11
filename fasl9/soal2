@@ -1,0 +1,107 @@
+using System;
+
+class Node
+{
+    public int Data;
+    public Node Left;
+    public Node Right;
+    public Node Parent;
+
+    public Node(int data)
+    {
+        Data = data;
+        Left = null;
+        Right = null;
+        Parent = null;
+    }
+}
+
+class BinaryTree
+{
+    public Node Root;
+
+    public BinaryTree()
+    {
+        Root = null;
+    }
+
+    public void Add(int data)
+    {
+        Node newNode = new Node(data);
+        if (Root == null)
+        {
+            Root = newNode;
+            return;
+        }
+
+        Node current = Root;
+        Node parent = null;
+
+        while (current != null)
+        {
+            parent = current;
+            if (data < current.Data)
+                current = current.Left;
+            else
+                current = current.Right;
+        }
+
+        if (data < parent.Data)
+            parent.Left = newNode;
+        else
+            parent.Right = newNode;
+
+        newNode.Parent = parent; 
+    }
+
+    public void InOrderTraversal()
+    {
+        Node current = Root;
+
+        while (current.Left != null)
+        {
+            current = current.Left;
+        }
+
+        while (current != null)
+        {
+            Console.Write(current.Data + " "); 
+
+            if (current.Right != null)
+            {
+                current = current.Right;
+                while (current.Left != null)
+                {
+                    current = current.Left;
+                }
+            }
+            else
+            {
+                while (current.Parent != null && current.Parent.Right == current)
+                {
+                    current = current.Parent; 
+                }
+                current = current.Parent; 
+            }
+        }
+    }
+}
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        BinaryTree tree = new BinaryTree();
+
+        tree.Add(5);
+        tree.Add(3);
+        tree.Add(7);
+        tree.Add(2);
+        tree.Add(4);
+        tree.Add(6);
+        tree.Add(8);
+
+        Console.WriteLine("Perevaz In-Order:");
+        tree.InOrderTraversal(); 
+    }
+}
